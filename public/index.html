@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOXIOM BOT SERVER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg:      #04080f;
+    --surface: #070d1a;
+    --border:  #0c1c30;
+    --text:    #8ba7c4;
+    --dim:     #2a3f55;
+    --cyan:    #00c8f0;
+    --green:   #00e87a;
+    --red:     #ff3355;
+    --yellow:  #ffaa00;
+    --purple:  #a020f0;
+    --orange:  #ff7a00;
+    --mono:    'Share Tech Mono', monospace;
+    --orb:     'Orbitron', monospace;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* ── Scanline overlay ── */
+body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent, transparent 2px,
+        rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px
+    );
+    pointer-events: none; z-index: 9999;
+}
+
+/* ── Layout ── */
+.shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+}
+
+/* ── Header ── */
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+}
+
+.logo {
+    font-family: var(--orb);
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 0.22em;
+    color: var(--cyan);
+    text-shadow: 0 0 18px rgba(0,200,240,0.4);
+}
+.logo em { color: var(--red); font-style: normal; }
+
+.conn-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+}
+.conn-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--dim);
+    box-shadow: none;
+    transition: background 0.3s, box-shadow 0.3s;
+}
+.conn-dot.live {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.5; }
+}
+
+/* ── Grid layout ── */
+.grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+@media (max-width: 800px) {
+    .grid { grid-template-columns: 1fr; }
+}
+
+/* ── Card ── */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+}
+.card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.5;
+}
+
+.card-title {
+    font-family: var(--orb);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 18px;
+}
+
+/* ── Form fields ── */
+.field { margin-bottom: 14px; }
+
+.label {
+    display: block;
+    font-size: 8px;
+    letter-spacing: 0.35em;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+input[type="text"],
+input[type="number"] {
+    width: 100%;
+    background: rgba(0,200,240,0.03);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 9px 12px;
+    color: var(--cyan);
+    font-family: var(--mono);
+    font-size: 11px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+input[type="text"]:focus,
+input[type="number"]:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 12px rgba(0,200,240,0.15);
+}
+input::placeholder { color: var(--dim); }
+
+/* ── Mode buttons ── */
+.mode-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.mode-btn {
+    padding: 10px 6px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+}
+.mode-btn .m-label {
+    display: block;
+    font-family: var(--orb);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--dim);
+    transition: color 0.15s;
+}
+.mode-btn .m-sub {
+    display: block;
+    font-size: 7px;
+    letter-spacing: 0.1em;
+    color: var(--dim);
+    margin-top: 3px;
+    transition: color 0.15s;
+}
+.mode-btn:hover { border-color: #1a3050; }
+
+/* lag */
+.mode-btn[data-mode="lag"].active {
+    border-color: var(--cyan);
+    background: rgba(0,200,240,0.06);
+    box-shadow: 0 0 14px rgba(0,200,240,0.1);
+}
+.mode-btn[data-mode="lag"].active .m-label { color: var(--cyan); }
+.mode-btn[data-mode="lag"].active .m-sub   { color: rgba(0,200,240,0.6); }
+
+/* pillar */
+.mode-btn[data-mode="pillar"].active {
+    border-color: var(--purple);
+    background: rgba(160,32,240,0.06);
+    box-shadow: 0 0 14px rgba(160,32,240,0.1);
+}
+.mode-btn[data-mode="pillar"].active .m-label { color: var(--purple); }
+.mode-btn[data-mode="pillar"].active .m-sub   { color: rgba(160,32,240,0.6); }
+
+/* roam */
+.mode-btn[data-mode="roam"].active {
+    border-color: var(--orange);
+    background: rgba(255,122,0,0.06);
+    box-shadow: 0 0 14px rgba(255,122,0,0.1);
+}
+.mode-btn[data-mode="roam"].active .m-label { color: var(--orange); }
+.mode-btn[data-mode="roam"].active .m-sub   { color: rgba(255,122,0,0.6); }
+
+/* ── Row for count/secs ── */
+.input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.input-row input { text-align: center; }
+
+/* ── Buttons ── */
+.btn-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+}
+
+.btn {
+    padding: 11px 16px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid;
+    background: transparent;
+    transition: all 0.15s;
+}
+
+.btn-deploy {
+    border-color: var(--green);
+    color: var(--green);
+}
+.btn-deploy:hover {
+    background: rgba(0,232,122,0.08);
+    box-shadow: 0 0 18px rgba(0,232,122,0.2);
+}
+
+.btn-kill {
+    border-color: var(--red);
+    color: var(--red);
+    padding: 11px 14px;
+}
+.btn-kill:hover {
+    background: rgba(255,51,85,0.08);
+    box-shadow: 0 0 18px rgba(255,51,85,0.2);
+}
+.btn-kill:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+}
+
+/* ── Stats ── */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.stat {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 12px 8px;
+    text-align: center;
+}
+.stat-val {
+    display: block;
+    font-family: var(--orb);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+}
+.stat-val.g { color: var(--green); text-shadow: 0 0 12px rgba(0,232,122,0.3); }
+.stat-val.w { color: var(--cyan);  text-shadow: 0 0 12px rgba(0,200,240,0.3); }
+.stat-val.r { color: var(--red);   text-shadow: 0 0 12px rgba(255,51,85,0.3); }
+.stat-lbl {
+    display: block;
+    font-size: 7px;
+    letter-spacing: 0.3em;
+    color: var(--dim);
+    margin-top: 5px;
+}
+
+/* ── Bot grid ── */
+.bot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 5px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.bot-card {
+    border: 1px solid rgba(0,232,122,0.25);
+    background: rgba(0,232,122,0.04);
+    border-radius: 3px;
+    padding: 7px 4px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+}
+.bot-card:hover {
+    border-color: rgba(255,51,85,0.4);
+    background: rgba(255,51,85,0.06);
+}
+.bot-card:hover .bc-id { color: var(--red); }
+.bot-card.dead {
+    border-color: rgba(255,51,85,0.15);
+    background: rgba(255,51,85,0.02);
+    opacity: 0.4;
+}
+.bot-card.connecting {
+    border-color: rgba(0,200,240,0.25);
+    background: rgba(0,200,240,0.03);
+}
+
+.bc-id {
+    display: block;
+    font-family: var(--orb);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--green);
+    line-height: 1;
+}
+.bot-card.dead .bc-id     { color: var(--red); }
+.bot-card.connecting .bc-id { color: var(--cyan); }
+
+.bc-mode {
+    display: block;
+    font-size: 6px;
+    letter-spacing: 0.1em;
+    color: var(--dim);
+    margin-top: 2px;
+}
+.bc-timer {
+    display: block;
+    font-size: 8px;
+    color: var(--yellow);
+    margin-top: 1px;
+}
+
+.bot-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 22px;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--dim);
+}
+
+/* ── Log ── */
+#log {
+    height: 300px;
+    overflow-y: auto;
+    font-size: 9px;
+    line-height: 1.8;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 2px;
+}
+.li { display: flex; gap: 8px; }
+.li-time { color: var(--dim); flex-shrink: 0; }
+.li-msg { }
+.li.info    .li-msg { color: var(--cyan); }
+.li.success .li-msg { color: var(--green); }
+.li.error   .li-msg { color: var(--red); }
+.li.warn    .li-msg { color: var(--yellow); }
+
+/* ── Server address reminder ── */
+.server-note {
+    margin-top: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    color: var(--dim);
+    line-height: 1.8;
+}
+.server-note span { color: var(--green); }
+</style>
+</head>
+<body>
+<div class="shell">
+    <header>
+        <div class="logo">VOXIOM <em>BOT</em> SERVER</div>
+        <div class="conn-status">
+            <div class="conn-dot" id="conn-dot"></div>
+            <span id="conn-label">DISCONNECTED</span>
+        </div>
+    </header>
+
+    <div class="grid">
+
+        <!-- ── Left panel: controls ── -->
+        <div>
+            <div class="card">
+                <div class="card-title">Bot Configuration</div>
+
+                <div class="field">
+                    <label class="label">Game Server URL</label>
+                    <input type="text" id="url"
+                        value="wss://game-server-bZetD.voxiom.io:443"
+                        placeholder="wss://game-server-XXXXX.voxiom.io:443">
+                </div>
+
+                <div class="field">
+                    <label class="label">Bot Mode</label>
+                    <div class="mode-grid">
+                        <button class="mode-btn active" data-mode="lag">
+                            <span class="m-label">LAG BOT</span>
+                            <span class="m-sub">BSG CTG</span>
+                        </button>
+                        <button class="mode-btn" data-mode="pillar">
+                            <span class="m-label">PILLAR</span>
+                            <span class="m-sub">BUILDER</span>
+                        </button>
+                        <button class="mode-btn" data-mode="roam">
+                            <span class="m-label">ROAM</span>
+                            <span class="m-sub">SHOOTER</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="input-row">
+                    <div>
+                        <label class="label">Bot Count</label>
+                        <input type="number" id="count" min="1" max="50" value="1">
+                    </div>
+                    <div>
+                        <label class="label">Life (seconds)</label>
+                        <input type="number" id="life" min="5" max="600" value="35">
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-deploy" id="deploy-btn">▶ DEPLOY BOTS</button>
+                    <button class="btn btn-kill" id="kill-btn" disabled>✕ KILL ALL</button>
+                </div>
+
+                <div class="server-note">
+                    Bots run on the server — packets sent server-side.<br>
+                    Click a bot card to kill that individual bot.<br>
+                    <span>WSS traffic originates from this machine.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Right panel: live status ── -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+
+            <div class="card">
+                <div class="card-title">Live Status</div>
+                <div class="stats-row">
+                    <div class="stat">
+                        <span class="stat-val g" id="s-active">0</span>
+                        <span class="stat-lbl">ACTIVE</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-val w" id="s-total">0</span>
+                        <span class="stat-lbl">TOTAL SENT</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-val r" id="s-dead">0</span>
+                        <span class="stat-lbl">DEAD</span>
+                    </div>
+                </div>
+                <div class="bot-grid" id="bot-grid">
+                    <div class="bot-empty">NO BOTS DEPLOYED</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Event Log</div>
+                <div id="log"></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    let ws;
+    let selectedMode = 'lag';
+    let botData = [];
+
+    // ── WebSocket to server ──────────────────────────────────────
+    function connect() {
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+        ws.onopen = () => {
+            document.getElementById('conn-dot').classList.add('live');
+            document.getElementById('conn-label').textContent = 'CONNECTED';
+            addLog('Panel connected to server', 'success');
+        };
+
+        ws.onclose = () => {
+            document.getElementById('conn-dot').classList.remove('live');
+            document.getElementById('conn-label').textContent = 'DISCONNECTED';
+            addLog('Lost connection — retrying in 3s...', 'error');
+            setTimeout(connect, 3000);
+        };
+
+        ws.onmessage = (e) => {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'log') {
+                addLog(msg.msg, msg.level);
+            } else if (msg.type === 'init' || msg.type === 'botUpdate') {
+                updateStats(msg);
+            }
+        };
+    }
+
+    // ── Log ──────────────────────────────────────────────────────
+    function addLog(text, level) {
+        const el  = document.getElementById('log');
+        const now = new Date().toTimeString().slice(0, 8);
+        const row = document.createElement('div');
+        row.className = 'li ' + (level || 'info');
+        row.innerHTML = `<span class="li-time">${now}</span><span class="li-msg">${text}</span>`;
+        el.appendChild(row);
+        el.scrollTop = el.scrollHeight;
+        while (el.children.length > 200) el.removeChild(el.firstChild);
+    }
+
+    // ── Stats & bot grid ─────────────────────────────────────────
+    function updateStats(msg) {
+        document.getElementById('s-active').textContent = msg.active;
+        document.getElementById('s-total').textContent  = msg.total;
+        document.getElementById('s-dead').textContent   = msg.dead;
+        document.getElementById('kill-btn').disabled    = msg.active === 0 && msg.dead === 0;
+
+        const grid = document.getElementById('bot-grid');
+        grid.innerHTML = '';
+
+        if (!msg.bots || !msg.bots.length) {
+            grid.innerHTML = '<div class="bot-empty">NO BOTS DEPLOYED</div>';
+            return;
+        }
+
+        const modeShort = { lag: 'LAG', pillar: 'PIL', roam: 'ROAM' };
+
+        msg.bots.forEach(b => {
+            const card = document.createElement('div');
+            const cls  = b.alive ? '' : 'dead';
+            card.className = 'bot-card ' + cls;
+            card.dataset.id = b.id;
+            const timer = b.alive && b.secsLeft > 0 ? b.secsLeft + 's' : '';
+            card.innerHTML = `
+                <span class="bc-id">#${String(b.id).padStart(2,'0')}</span>
+                <span class="bc-mode">${modeShort[b.mode] || b.mode}</span>
+                <span class="bc-timer">${timer}</span>
+            `;
+            card.addEventListener('click', () => killBot(b.id));
+            grid.appendChild(card);
+        });
+    }
+
+    // ── Mode selection ───────────────────────────────────────────
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedMode = btn.dataset.mode;
+        });
+    });
+
+    // ── Deploy ───────────────────────────────────────────────────
+    document.getElementById('deploy-btn').addEventListener('click', async () => {
+        const url   = document.getElementById('url').value.trim();
+        const count = parseInt(document.getElementById('count').value) || 1;
+        const life  = parseInt(document.getElementById('life').value)  || 35;
+
+        if (!url.startsWith('wss://')) {
+            addLog('URL must start with wss://', 'error'); return;
+        }
+
+        const res = await fetch('/api/deploy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, mode: selectedMode, count, lifeSeconds: life })
+        });
+        const data = await res.json();
+        if (data.error) addLog(data.error, 'error');
+    });
+
+    // ── Kill all ─────────────────────────────────────────────────
+    document.getElementById('kill-btn').addEventListener('click', async () => {
+        await fetch('/api/kill', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: 'all' })
+        });
+    });
+
+    // ── Kill individual bot ───────────────────────────────────────
+    async function killBot(id) {
+        await fetch('/api/kill', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+    }
+
+    connect();
+})();
+</script>
+</body>
+</html>
